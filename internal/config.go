@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const VERSION = "1.0.9"
+const VERSION = "1.1.0"
 
 var CI bool = false
 var VERBOSE bool = false
@@ -75,21 +75,22 @@ func (c *Config) Describe() {
 			colors.PrintDescription("Cron", l.Cron)
 		}
 
-		after, before := len(l.Hooks.After), len(l.Hooks.Before)
-		if after+before > 0 {
-			tmp = ""
-			if before > 0 {
-				tmp += "\tBefore"
-				for _, cmd := range l.Hooks.Before {
+		tmp = ""
+		hooks := map[string][]string{
+			"Before":  l.Hooks.Before,
+			"After":   l.Hooks.After,
+			"Failure": l.Hooks.Failure,
+			"Success": l.Hooks.Success,
+		}
+		for hook, commands := range hooks {
+			if len(commands) > 0 {
+				tmp += "\n\t" + hook
+				for _, cmd := range commands {
 					tmp += colors.Faint.Sprintf("\n\t  ▶ %s", cmd)
 				}
 			}
-			if after > 0 {
-				tmp += "\n\tAfter"
-				for _, cmd := range l.Hooks.After {
-					tmp += colors.Faint.Sprintf("\n\t  ▶ %s", cmd)
-				}
-			}
+		}
+		if tmp != "" {
 			colors.PrintDescription("Hooks", tmp)
 		}
 
@@ -129,7 +130,7 @@ func CheckConfig() error {
 		return fmt.Errorf("config could not be loaded/found")
 	}
 	if !CheckIfResticIsCallable() {
-		return fmt.Errorf(`restic was not found. Install either with "autorestic install" or manually`)
+		return fmt.Errorf(`%s was not found. Install either with "autorestic install" or manually`, RESTIC_BIN)
 	}
 	for name, backend := range c.Backends {
 		backend.name = name

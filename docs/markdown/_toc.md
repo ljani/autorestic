@@ -22,6 +22,7 @@
 >
 > [Overview](/backend/overview)
 > [Available Backends](/backend/available)
+> [Options](/backend/options)
 
 > :Collapse label=CLI
 >
@@ -36,7 +37,7 @@
 > [Exec](/cli/exec)
 > [Install](/cli/install)
 > [Uninstall](/cli/uninstall)
-> [Update](/cli/update)
+> [Upgrade](/cli/upgrade)
 
 [Examples](/examples)
 

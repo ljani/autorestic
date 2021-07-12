@@ -47,7 +47,7 @@ func GetLocation(name string) (Location, bool) {
 	return l, ok
 }
 
-func (l Location) validate(c *Config) error {
+func (l Location) validate() error {
 	if l.From == "" {
 		return fmt.Errorf(`Location "%s" is missing "from" key`, l.name)
 	}
@@ -132,8 +132,15 @@ func (l Location) Backup(cron bool) []error {
 		Command: "bash",
 	}
 
+	if err := l.validate(); err != nil {
+		errors = append(errors, err)
+		colors.Error.Print(err)
+		goto after
+	}
+
 	if t == TypeLocal {
 		dir, _ := GetPathRelativeToConfig(l.From)
+		colors.Faint.Printf("Executing under: \"%s\"\n", dir)
 		options.Dir = dir
 	}
 

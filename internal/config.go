@@ -12,13 +12,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-const VERSION = "1.1.1"
+const VERSION = "1.1.2"
 
 var CI bool = false
 var VERBOSE bool = false
 var CRON_LEAN bool = false
 
 type Config struct {
+	Extras    interface{}         `yaml:"extras"`
 	Locations map[string]Location `yaml:"locations"`
 	Backends  map[string]Backend  `yaml:"backends"`
 }
@@ -140,7 +141,7 @@ func CheckConfig() error {
 	}
 	for name, location := range c.Locations {
 		location.name = name
-		if err := location.validate(c); err != nil {
+		if err := location.validate(); err != nil {
 			return err
 		}
 	}

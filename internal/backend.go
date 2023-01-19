@@ -120,18 +120,19 @@ func (b Backend) validate() error {
 	if err != nil {
 		return err
 	}
-	options := ExecuteOptions{Envs: env}
+	options := ExecuteOptions{Envs: env, Silent: true}
 	// Check if already initialized
-	_, _, err = ExecuteResticCommand(options, "snapshots")
+	cmd := []string{"check"}
+	cmd = append(cmd, combineBackendOptions("check", b)...)
+	_, _, err = ExecuteResticCommand(options, cmd...)
 	if err == nil {
 		return nil
 	} else {
 		// If not initialize
 		colors.Body.Printf("Initializing backend \"%s\"...\n", b.name)
-		_, out, err := ExecuteResticCommand(options, "init")
-		if flags.VERBOSE {
-			colors.Faint.Println(out)
-		}
+		cmd := []string{"init"}
+		cmd = append(cmd, combineBackendOptions("init", b)...)
+		_, _, err := ExecuteResticCommand(options, cmd...)
 		return err
 	}
 }
@@ -146,9 +147,6 @@ func (b Backend) Exec(args []string) error {
 	if err != nil {
 		colors.Error.Println(out)
 		return err
-	}
-	if flags.VERBOSE {
-		colors.Faint.Println(out)
 	}
 	return nil
 }
@@ -167,7 +165,6 @@ func (b Backend) ExecDocker(l Location, args []string) (int, string, error) {
 	args = append([]string{"restic"}, args...)
 	docker := []string{
 		"run", "--rm",
-		"--pull", "always",
 		"--entrypoint", "ash",
 		"--workdir", dir,
 		"--volume", volume + ":" + dir,
@@ -201,6 +198,7 @@ func (b Backend) ExecDocker(l Location, args []string) (int, string, error) {
 	for key, value := range env {
 		docker = append(docker, "--env", key+"="+value)
 	}
-	docker = append(docker, "cupcakearmy/autorestic:"+VERSION, "-c", strings.Join(args, " "))
+
+	docker = append(docker, flags.DOCKER_IMAGE, "-c", strings.Join(args, " "))
 	return ExecuteCommand(options, docker...)
 }

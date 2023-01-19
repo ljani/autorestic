@@ -74,12 +74,8 @@ func (l Location) validate() error {
 			if from, err := GetPathRelativeToConfig(path); err != nil {
 				return err
 			} else {
-				if stat, err := os.Stat(from); err != nil {
+				if _, err := os.Stat(from); err != nil {
 					return err
-				} else {
-					if !stat.IsDir() {
-						return fmt.Errorf("\"%s\" is not valid directory for location \"%s\"", from, l.name)
-					}
 				}
 			}
 		}
@@ -145,9 +141,6 @@ func (l Location) ExecuteHooks(commands []string, options ExecuteOptions) error 
 		if err != nil {
 			colors.Error.Println(out)
 			return err
-		}
-		if flags.VERBOSE {
-			colors.Faint.Println(out)
 		}
 	}
 	colors.Body.Println("")
@@ -223,7 +216,7 @@ func (l Location) Backup(cron bool, specificBackend string) []error {
 		}
 
 		cmd := []string{"backup"}
-		cmd = append(cmd, combineOptions("backup", l, backend)...)
+		cmd = append(cmd, combineAllOptions("backup", l, backend)...)
 		if cron {
 			cmd = append(cmd, "--tag", buildTag("cron"))
 		}
@@ -284,23 +277,15 @@ func (l Location) Backup(cron bool, specificBackend string) []error {
 					for k, v := range env2 {
 						env[k+"2"] = v
 					}
-					_, out, err := ExecuteResticCommand(ExecuteOptions{
+					_, _, err := ExecuteResticCommand(ExecuteOptions{
 						Envs: env,
 					}, "copy", md.SnapshotID)
-
-					if flags.VERBOSE {
-						colors.Faint.Println(out)
-					}
 
 					if err != nil {
 						errors = append(errors, err)
 					}
 				}
 			}
-		}
-
-		if flags.VERBOSE {
-			colors.Faint.Println(out)
 		}
 	}
 
@@ -323,7 +308,10 @@ after:
 
 	// Forget and optionally prune
 	if isSuccess && l.ForgetOption != "" && l.ForgetOption != LocationForgetNo {
-		l.Forget(l.ForgetOption == LocationForgetPrune, false)
+		err := l.Forget(l.ForgetOption == LocationForgetPrune, false)
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
 
 	if len(errors) == 0 {
@@ -335,7 +323,12 @@ after:
 func (l Location) Forget(prune bool, dry bool) error {
 	colors.PrimaryPrint("Forgetting for location \"%s\"", l.name)
 
-	for _, to := range l.To {
+	backendsToForget := l.To
+	for _, copyBackends := range l.CopyOption {
+		backendsToForget = append(backendsToForget, copyBackends...)
+	}
+
+	for _, to := range backendsToForget {
 		backend, _ := GetBackend(to)
 		colors.Secondary.Printf("For backend \"%s\"\n", backend.name)
 		env, err := backend.getEnv()
@@ -352,11 +345,8 @@ func (l Location) Forget(prune bool, dry bool) error {
 		if dry {
 			cmd = append(cmd, "--dry-run")
 		}
-		cmd = append(cmd, combineOptions("forget", l, backend)...)
-		_, out, err := ExecuteResticCommand(options, cmd...)
-		if flags.VERBOSE {
-			colors.Faint.Println(out)
-		}
+		cmd = append(cmd, combineAllOptions("forget", l, backend)...)
+		_, _, err = ExecuteResticCommand(options, cmd...)
 		if err != nil {
 			return err
 		}
